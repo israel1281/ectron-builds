@@ -27,6 +27,10 @@ def build(root, args):
     stage = prepare_brand(root, args.brand_name)
     environment = os.environ.copy()
     environment['CARGO_TARGET_DIR'] = str(stage / 'target')
+    if host == 'linux':
+        script = stage / 'build.py'
+        script.write_text(script.read_text().replace(
+            'dpkg-deb -b tmpdeb', 'dpkg-deb --root-owner-group -b tmpdeb'))
     if host == 'macos' and platform.machine().lower() in ('arm64', 'aarch64'):
         replacements = {
             'build.py': (r'MACOSX_DEPLOYMENT_TARGET=10\.14', 'MACOSX_DEPLOYMENT_TARGET=12.3'),
