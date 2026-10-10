@@ -27,6 +27,10 @@ internal static class HostSetup
                 security.AddAccessRule(new FileSystemAccessRule(new SecurityIdentifier(sid, null),
                     FileSystemRights.FullControl, InheritanceFlags.ContainerInherit | InheritanceFlags.ObjectInherit,
                     PropagationFlags.None, AccessControlType.Allow));
+            using (var identity = WindowsIdentity.GetCurrent())
+                security.AddAccessRule(new FileSystemAccessRule(identity.User, FileSystemRights.ReadAndExecute,
+                    InheritanceFlags.ContainerInherit | InheritanceFlags.ObjectInherit,
+                    PropagationFlags.None, AccessControlType.Allow));
             Directory.CreateDirectory(directory, security);
             string package = Path.Combine(directory, PayloadName);
             using (var input = Assembly.GetExecutingAssembly().GetManifestResourceStream("HostMsi"))
