@@ -96,6 +96,9 @@ pub fn core_main() -> Option<Vec<String>> {
             hbb_common::allow_err!(crate::run_me(vec!["--tray"]));
         }
     }
+    if let Some(status) = crate::deployment::setup_command(&args) {
+        std::process::exit(status);
+    }
     #[cfg(not(debug_assertions))]
     #[cfg(not(any(target_os = "android", target_os = "ios")))]
     register_breakdown_handler(breakdown_callback);

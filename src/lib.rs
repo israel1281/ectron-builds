@@ -43,6 +43,8 @@ mod auth_2fa;
 mod clipboard;
 #[cfg(not(any(target_os = "android", target_os = "ios")))]
 pub mod core_main;
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
+mod deployment;
 mod custom_server;
 mod lang;
 #[cfg(not(any(target_os = "android", target_os = "ios")))]

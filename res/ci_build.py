@@ -11,6 +11,7 @@ import sys
 import tempfile
 
 from res.branding import prepare_brand, validate_brand_name
+from res.connection_role import add_arguments, package_suffix, prepare_role
 from res.platform_build import FORMATS
 
 
@@ -37,6 +38,7 @@ def build(root, args):
             args.platform, args.package_format, args.platform))
     stage = prepare_brand(root, args.brand_name)
     environment = os.environ.copy()
+    prepare_role(stage, args, environment)
     environment['CARGO_TARGET_DIR'] = str(stage / 'target')
     if host == 'linux':
         script = stage / 'build.py'
@@ -67,7 +69,8 @@ def build(root, args):
     version = re.search(r'^version\s*=\s*"([^"]+)"', (stage / 'Cargo.toml').read_text(), re.M)[1]
     slug = args.brand_name.lower()
     arch = 'arm64' if host == 'macos' and platform.machine().lower() in ('arm64', 'aarch64') else 'x86_64'
-    destination = output / '{}-{}-{}.{}'.format(slug, version, arch, args.package_format)
+    destination = output / '{}-{}-{}{}.{}'.format(
+        slug, version, arch, package_suffix(args.connection_role), args.package_format)
     if host == 'macos':
         app = stage / 'flutter/build/macos/Build/Products/Release' / (args.brand_name + '.app')
         with tempfile.TemporaryDirectory() as temporary:
@@ -104,6 +107,7 @@ def main():
     parser.add_argument('--brand-name', type=validate_brand_name, required=True)
     parser.add_argument('--hwcodec', action='store_true')
     parser.add_argument('--unix-file-copy-paste', action='store_true')
+    add_arguments(parser)
     build(Path(__file__).resolve().parents[1], parser.parse_args())
 
 

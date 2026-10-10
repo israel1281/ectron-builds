@@ -11,6 +11,7 @@ import time
 import uuid
 
 from res.branding import EXCLUDED_DIRS
+from res.connection_role import add_arguments as add_role_arguments, validate_role
 
 
 WORKFLOW = 'branded-desktop.yml'
@@ -18,6 +19,7 @@ FORMATS = {'macos': ('dmg',), 'windows': ('exe', 'msi'), 'linux': ('deb',)}
 
 
 def add_arguments(parser):
+    add_role_arguments(parser)
     parser.add_argument('--platform', choices=('mac', 'macos', 'windows', 'linux'),
                         help='Build on a native GitHub Actions runner, from any host.')
     parser.add_argument('--package-format', choices=('dmg', 'exe', 'msi', 'deb'),
@@ -63,6 +65,10 @@ def build_platform(root, args, parser):
     root = Path(root)
     target = 'macos' if args.platform == 'mac' else args.platform
     package = args.package_format or FORMATS[target][0]
+    try:
+        validate_role(args.connection_role, target, package, args.host_id)
+    except ValueError as error:
+        parser.error(str(error))
     if package not in FORMATS[target]:
         parser.error('{} packages require --platform {}'.format(package, next(
             platform for platform, formats in FORMATS.items() if package in formats)))
@@ -81,7 +87,8 @@ def build_platform(root, args, parser):
     brand = args.brand_name or 'RustDesk'
     settings = {'repository': repository, 'platform': target, 'package_format': package,
                 'brand_name': brand, 'hwcodec': args.hwcodec,
-                'unix_file_copy_paste': args.unix_file_copy_paste}
+                'unix_file_copy_paste': args.unix_file_copy_paste,
+                'connection_role': args.connection_role, 'host_id': args.host_id}
     print(json.dumps(settings, indent=2), flush=True)
     if args.dry_run:
         return 0
@@ -90,7 +97,9 @@ def build_platform(root, args, parser):
     try:
         command(['gh', 'auth', 'status', '--hostname', 'github.com'], capture=True)
         metadata = json.loads(command(['gh', 'repo', 'view', repository, '--json',
-                                       'defaultBranchRef'], capture=True))
+                                       'defaultBranchRef,isPrivate'], capture=True))
+        if args.connection_role != 'standard' and not metadata.get('isPrivate'):
+            raise RuntimeError('Host/controller installers contain your password; use a private build repository.')
         default_branch = (metadata.get('defaultBranchRef') or {}).get('name')
         if default_branch:
             # Dispatch requires this workflow on the default branch. Never replace another repo.

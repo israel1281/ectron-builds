@@ -1,5 +1,5 @@
 name: Branded desktop package
-run-name: ${{ inputs.brand_name }} / ${{ inputs.platform }} / ${{ inputs.package_format }}
+run-name: ${{ inputs.brand_name }} / ${{ inputs.platform }} / ${{ inputs.package_format }} / ${{ inputs.connection_role }}
 
 on:
   workflow_dispatch:
@@ -16,6 +16,16 @@ on:
         type: string
         default: ectron
         required: true
+      connection_role:
+        description: 'standard: normal client; host: controlled Linux computer; controller: your Mac/Windows'
+        type: choice
+        options: [standard, host, controller]
+        default: standard
+        required: true
+      host_id:
+        description: 'Optional existing Linux device ID to prefill in a controller build'
+        type: string
+        default: ''
       hwcodec:
         type: boolean
         default: false
@@ -34,6 +44,9 @@ env:
   PACKAGE_FORMAT: ${{ inputs.package_format }}
   HWCODEC: ${{ inputs.hwcodec }}
   UNIX_COPY: ${{ inputs.unix_file_copy_paste }}
+  CONNECTION_ROLE: ${{ inputs.connection_role }}
+  HOST_ID: ${{ inputs.host_id }}
+  BUILD_REPOSITORY_PRIVATE: ${{ github.event.repository.private }}
 
 jobs:
   bridge:
@@ -41,6 +54,22 @@ jobs:
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - name: Validate personal build settings
+        env:
+          ECTRON_HOST_PASSWORD: ${{ secrets.ECTRON_HOST_PASSWORD }}
+        run: |
+          python3 - <<'PY'
+          import os
+          from res.connection_role import validate_role
+          role = os.environ['CONNECTION_ROLE']
+          validate_role(role, os.environ['BUILD_PLATFORM'], os.environ['PACKAGE_FORMAT'], os.environ['HOST_ID'])
+          if role != 'standard':
+              if os.environ['BUILD_REPOSITORY_PRIVATE'] != 'true':
+                  raise SystemExit('Use a private repository for installers containing your shared password.')
+              password = os.environ.get('ECTRON_HOST_PASSWORD', '')
+              if not 12 <= len(password) <= 128 or '\n' in password or '\r' in password:
+                  raise SystemExit('Set the ECTRON_HOST_PASSWORD repository secret to a password of 12–128 characters.')
+          PY
       - run: sudo apt-get update && sudo apt-get install -y clang libclang-dev libgtk-3-dev ninja-build
       - uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9
         with:
@@ -150,8 +179,10 @@ jobs:
           workspaces: ${{ steps.brand.outputs.workspace }}
           prefix-key: desktop-${{ inputs.platform }}-${{ inputs.brand_name }}
       - name: Build requested package
+        env:
+          ECTRON_HOST_PASSWORD: ${{ secrets.ECTRON_HOST_PASSWORD }}
         run: |
-          args=(--platform "$BUILD_PLATFORM" --package-format "$PACKAGE_FORMAT" --brand-name "$BRAND_NAME")
+          args=(--platform "$BUILD_PLATFORM" --package-format "$PACKAGE_FORMAT" --brand-name "$BRAND_NAME" --connection-role "$CONNECTION_ROLE" --host-id "$HOST_ID")
           if [ "$HWCODEC" = true ]; then args+=(--hwcodec); fi
           if [ "$UNIX_COPY" = true ]; then args+=(--unix-file-copy-paste); fi
           python -m res.ci_build "${args[@]}"

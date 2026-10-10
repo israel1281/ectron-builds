@@ -98,6 +98,57 @@ Open the DMG on your Mac and drag the app into Applications. Copy the DEB to the
 Linux computer, then install it there with `sudo apt install ./ectron-1.5.0-x86_64.deb`.
 On Windows, open the generated EXE or MSI to install the client.
 
+## Personal host and controller installers
+
+`--connection-role host` makes a Linux DEB install the shared permanent password,
+accept connections by password, allow access while its window is closed, enable
+keyboard/mouse control, and enable/start the systemd service. The installer waits
+for the service to acknowledge its settings; failures leave the package
+unconfigured and print a retry command. Upgrades reapply the shared password.
+The application does not need to be opened on the Linux computer.
+
+`--connection-role controller` makes a Mac, Windows or Linux client use the same
+password when you click Connect. `--host-id` optionally prefills an existing
+host's numeric ID. An omitted ID lets you connect to any of your hosts by ID.
+Ordinary builds default to `standard` and retain their previous behavior.
+
+The shared password is read from the **ECTRON_HOST_PASSWORD** GitHub repository
+secret, never a workflow input, source file or log. Set it in the private build
+repository under Settings → Secrets and variables → Actions. Use 12–128
+characters. Host and controller installers contain this credential and must be
+distributed privately; public repositories reject personal builds. Public
+source and standard installers may remain in `israel1281/ectron-builds`.
+
+```sh
+python3 build.py --platform linux --package-format deb --brand-name ectron \
+  --connection-role host --github-repo OWNER/PRIVATE-BUILD-REPO
+
+python3 build.py --platform mac --package-format dmg --brand-name ectron \
+  --connection-role controller --github-repo OWNER/PRIVATE-BUILD-REPO
+
+python3 build.py --platform windows --package-format msi --brand-name ectron \
+  --connection-role controller --host-id YOUR_EXISTING_NUMERIC_HOST_ID \
+  --github-repo OWNER/PRIVATE-BUILD-REPO
+```
+
+In GitHub's Run workflow form, choose the same `connection_role` and optionally
+set `host_id`. Personal package filenames end in `-host` or `-controller`.
+The public connection service gives each host its own device ID after install;
+one ID cannot identify several different computers. Retaining the app's local
+configuration retains its ID, subject to public-server registration/collisions.
+
+After installing a host, the installer prints its ID and saves an owner-only
+connection profile at `/var/lib/ectron/host-connection.json`. Copy this file
+privately to your Mac/Windows computer, then click **Import host connection** in
+the controller build to connect using its ID and password. Alternatively, enter
+its printed ID and click Connect; the controller already has the shared password.
+Keep the connection profile private, since it contains the password.
+
+Hosts must remain powered on, awake and online. GNOME Wayland can require local
+screen-sharing approval; X11 is required to control the login screen after a
+reboot. These installers do not bypass desktop permission prompts or change GDM.
+See [RustDesk's Linux guide](https://rustdesk.com/docs/en/client/linux/).
+
 ## Local macOS build and libyuv
 
 The original command still compiles locally:

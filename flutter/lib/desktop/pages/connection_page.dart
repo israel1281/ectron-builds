@@ -19,6 +19,8 @@ import '../../common/formatter/id_formatter.dart';
 import '../../common/widgets/peer_tab_page.dart';
 import '../../common/widgets/autocomplete.dart';
 import '../../models/platform_model.dart';
+import '../deployment_profile.dart';
+import '../widgets/host_connection.dart';
 import '../../desktop/widgets/material_mod_popup_menu.dart' as mod_menu;
 
 class OnlineStatusWidget extends StatefulWidget {
@@ -221,6 +223,9 @@ class _ConnectionPageState extends State<ConnectionPage>
     super.initState();
     _allPeersLoader.init(setState);
     _idFocusNode.addListener(onFocusChanged);
+    if (deploymentRole == 'controller' && deploymentHostId.isNotEmpty) {
+      _idController.id = deploymentHostId;
+    }
     if (_idController.text.isEmpty) {
       WidgetsBinding.instance.addPostFrameCallback((_) async {
         final lastRemoteId = await bind.mainGetLastRemoteId();
@@ -315,6 +320,7 @@ class _ConnectionPageState extends State<ConnectionPage>
               ],
             ).marginOnly(top: 22),
             SizedBox(height: 12),
+            if (deploymentRole == 'controller') const ImportHostConnection(),
             Divider().paddingOnly(right: 12),
             Expanded(child: PeerTabPage()),
           ],
@@ -334,6 +340,7 @@ class _ConnectionPageState extends State<ConnectionPage>
       bool isTcpTunneling = false}) {
     var id = _idController.id;
     connect(context, id,
+        password: controllerPassword(id),
         isFileTransfer: isFileTransfer,
         isViewCamera: isViewCamera,
         isTerminal: isTerminal,

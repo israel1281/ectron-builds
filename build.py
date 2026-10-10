@@ -1030,6 +1030,8 @@ def main():
     if args.platform:
         from res.platform_build import build_platform
         raise SystemExit(build_platform(REPO_ROOT, args, parser))
+    if args.connection_role != 'standard' or args.host_id:
+        parser.error('--connection-role and --host-id require --platform; native runners use res.ci_build')
     if args.package_format or args.github_repo or args.no_wait or args.dry_run:
         parser.error('--package-format, --github-repo, --no-wait and --dry-run require --platform')
     if args.brand_name:
