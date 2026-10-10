@@ -198,12 +198,14 @@ jobs:
           ECTRON_PAIRING_HOST_TOKEN: ${{ secrets.ECTRON_PAIRING_HOST_TOKEN }}
         run: |
           $ErrorActionPreference = 'Stop'
-          $package = Get-ChildItem build/dist/*-host-setup.exe | Select-Object -First 1
-          $process = Start-Process $package.FullName -PassThru
-          if (-not $process.WaitForExit(120000)) { $process.Kill(); throw 'Background host setup did not finish' }
+          $package = Get-ChildItem build/dist/*-host.msi | Select-Object -First 1
+          $log = Join-Path $env:RUNNER_TEMP 'host-msi-install.log'
+          $process = Start-Process msiexec.exe -ArgumentList @('/i', ('"' + $package.FullName + '"'), '/norestart', '/l*v', ('"' + $log + '"')) -PassThru
+          if (-not $process.WaitForExit(120000)) { $process.Kill(); throw 'Automatic host MSI installation did not finish' }
           if ($process.ExitCode -notin @(0, 3010)) {
             throw "Host setup failed with exit code $($process.ExitCode)"
           }
+          if (-not (Select-String -Path $log -Pattern 'Property\(S\): UILevel = 3$' -Quiet)) { throw 'The MSI must use basic UI without wizard dialogs' }
           foreach ($folder in @([Environment]::GetFolderPath('DesktopDirectory'), [Environment]::GetFolderPath('CommonDesktopDirectory'))) {
             if (Test-Path (Join-Path $folder "$env:BRAND_NAME.lnk")) { throw 'The host must have no desktop shortcut' }
           }

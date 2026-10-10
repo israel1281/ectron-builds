@@ -106,10 +106,27 @@ keyboard/mouse control, and enable/start its background service. The installer w
 for the service to acknowledge its settings. Linux failures leave the package
 unconfigured and print a retry command; Windows setup failures fail the MSI
 installation. Upgrades reapply the shared password.
-The application does not need to be opened on the host computer. The Windows MSI
-does not launch the application window after installation.
+The application does not need to be opened on the host computer. Double-clicking
+the Windows host MSI starts installation without the setup wizard: approve the
+administrator prompt and Windows shows its built-in progress window. The host
+MSI defaults to no desktop or automatic tray shortcut, does not launch the
+application window, and suppresses automatic reboots. It remains visible in
+Windows' installed applications for removal. Standard and controller MSI builds
+retain their existing wizard.
 
-Windows host builds also produce `*-host-setup.exe`. Double-click this EXE and
+A fully silent installation needs an administrator command prompt:
+
+```bat
+msiexec /i "ectron-1.5.0-x86_64-host.msi" /qn /norestart CREATEDESKTOPSHORTCUTS=0 STARTUPSHORTCUTS=0 LAUNCH_TRAY_APP=N /l*v "%TEMP%\ectron-host-install.log"
+```
+
+An MSI cannot select the fully silent UI level simply by being double-clicked.
+See Microsoft's [LIMITUI property](https://learn.microsoft.com/en-us/windows/win32/msi/limitui)
+and [installer command-line options](https://learn.microsoft.com/en-us/windows/win32/msi/standard-installer-command-line-options).
+These Windows installers are unsigned. Using MSI does not provide a trusted
+publisher signature or exempt the application from Smart App Control checks.
+
+The separate packaging workflow can optionally produce `*-host-setup.exe`. Double-click this EXE and
 approve Windows' administrator prompt. It embeds the MSI, checks the embedded
 payload's SHA-256 hash, and runs Windows Installer with `/qn /norestart`:
 installation has no wizard, progress window or automatic reboot. It skips desktop

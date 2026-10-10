@@ -79,3 +79,23 @@ Known CI limit: the system installation profile's public key can differ from the
 user session's registration key, so deletion by the profile key can leave a test
 computer in the registry. The test records from these runs were removed locally
 by their exact name, ID and timestamp, preserving the user's real Windows host.
+
+## Automatic MSI installation without the wizard
+
+The follow-up changes are limited to Windows host packaging:
+
+| Existing file | Required change and affected path |
+| --- | --- |
+| `res/msi-host-setup.wxs` | Adds `LIMITUI` and its required `ARPNOMODIFY` property to the host-only fragment so double-clicking uses basic progress UI without wizard pages; suppresses automatic reboot. The installed-app removal entry remains available. |
+| `res/ci_build.py` | Returns the host MSI directly rather than automatically creating an EXE launcher. Standard, controller, Linux and macOS packages retain their existing paths; the separate EXE packaging workflow remains available. |
+| `.github/workflows/branded-desktop.yml` | Installs the Windows host MSI with the default UI selection and checks that its logged UI level is basic. Keeps the existing service, password and shortcut checks. |
+| `res/test_connection_role.py` | Extends the existing Windows host preparation regression check to cover the wizard-free MSI properties. |
+| `docs/platform-builds.md` | Documents double-click behavior, the remaining Windows progress/UAC UI, the fully silent command, and the unsigned publisher limitation. |
+| `docs/automatic-pairing-review.md` | Records this minimization review and verification limits. |
+
+No application, controller, pairing protocol or backend changes are required.
+The host's existing generated shortcut defaults remain disabled; the ordinary
+MSI template is unchanged. `LIMITUI` restricts installation to basic UI, not
+fully silent UI. Fully silent MSI installation uses `/qn` from an administrator
+command prompt. Neither option bypasses Windows security checks or signs the
+application. Native validation of this follow-up is pending.

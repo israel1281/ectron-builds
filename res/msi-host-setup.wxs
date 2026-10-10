@@ -1,5 +1,8 @@
 <Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
   <Fragment>
+    <Property Id="LIMITUI" Value="1" />
+    <Property Id="ARPNOMODIFY" Value="1" />
+    <Property Id="REBOOT" Value="ReallySuppress" />
     <CustomAction Id="ConfigureHost" FileRef="App.exe" ExeCommand="--setup-host"
                   Execute="deferred" Impersonate="no" Return="check" />
     <InstallExecuteSequence>

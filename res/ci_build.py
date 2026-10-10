@@ -93,9 +93,6 @@ def build(root, args):
         if len(packages) != 1:
             raise RuntimeError('Expected one compiled Package.msi, found {}'.format(len(packages)))
         shutil.copy2(str(packages[0]), str(destination))
-        if args.connection_role == 'host':
-            from res.windows_host_setup import build_setup
-            print('Host setup: ' + str(build_setup(destination, args.brand_name)), flush=True)
     else:
         source = stage / ('{}-{}-install.exe'.format(slug, version) if host == 'windows'
                           else '{}-{}.deb'.format(slug, version))
