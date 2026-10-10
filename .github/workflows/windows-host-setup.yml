@@ -127,6 +127,23 @@ jobs:
           if ($uninstall.ExitCode -notin @(0, 3010)) { throw 'Test host uninstall failed' }
           Verify-Setup
           Write-Host 'Verified background setup, fresh installation, previous shortcut removal, no host window, automatic service and shared password.'
+      - name: Remove the temporary test host registration
+        if: always()
+        shell: pwsh
+        env:
+          ECTRON_PAIRING_URL: ${{ vars.ECTRON_PAIRING_URL }}
+          ECTRON_PAIRING_HOST_TOKEN: ${{ secrets.ECTRON_PAIRING_HOST_TOKEN }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $profilePath = Join-Path $env:ProgramData ($env:BRAND_NAME.ToLower() + '/host/host-connection.json')
+          if (Test-Path $profilePath) {
+            $profile = Get-Content $profilePath -Raw | ConvertFrom-Json
+            Get-Service -Name $env:BRAND_NAME -ErrorAction SilentlyContinue | Stop-Service
+            if ($env:ECTRON_PAIRING_URL) {
+              $headers = @{ Authorization = ('Bearer ' + $env:ECTRON_PAIRING_HOST_TOKEN) }
+              Invoke-RestMethod -Method Delete -Uri ($env:ECTRON_PAIRING_URL + '/v1/hosts/' + $profile.device_key) -Headers $headers | Out-Null
+            }
+          }
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: desktop-windows-host-setup
