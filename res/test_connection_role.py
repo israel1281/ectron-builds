@@ -45,6 +45,7 @@ class ConnectionRoleTests(unittest.TestCase):
             fragment = (stage / 'res/msi/Package/Fragments/HostSetup.wxs').read_text()
             self.assertIn('ExeCommand="--setup-host"', fragment)
             self.assertIn('Return="check"', fragment)
+            self.assertIn('<CustomActionRef Id="ConfigureHost" />', component.read_text())
             self.assertIn('Action="LaunchApp" After="InstallFinalize" Condition="0"', component.read_text())
             self.assertEqual((ROOT / 'res/msi/Package/Components/RustDesk.wxs').read_text(), original)
 

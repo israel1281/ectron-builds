@@ -70,7 +70,9 @@ def prepare_role(stage, args, environment):
         component = stage / 'res/msi/Package/Components/RustDesk.wxs'
         component.write_text(re.sub(
             r'(<Custom Action="LaunchApp"[^>]*Condition=")[^"]*', r'\g<1>0',
-            component.read_text()), encoding='utf-8')
+            component.read_text()).replace(
+                '<Fragment>', '<Fragment>\n\t\t<CustomActionRef Id="ConfigureHost" />', 1),
+            encoding='utf-8')
 
 
 def package_suffix(role):
