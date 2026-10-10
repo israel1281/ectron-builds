@@ -15,7 +15,8 @@ from res.platform_build import FORMATS
 
 
 def run(arguments, directory, environment):
-    subprocess.run(arguments, cwd=str(directory), env=environment, check=True)
+    executable = shutil.which(arguments[0], path=environment.get('PATH')) or arguments[0]
+    subprocess.run([executable] + arguments[1:], cwd=str(directory), env=environment, check=True)
 
 
 def build(root, args):
