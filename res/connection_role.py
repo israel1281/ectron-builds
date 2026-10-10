@@ -70,11 +70,11 @@ def prepare_role(stage, args, environment):
         component = stage / 'res/msi/Package/Components/RustDesk.wxs'
         component.write_text(re.sub(
             r'(<Custom Action="LaunchApp(?:Tray)?"[^>]*Condition=")[^"]*', r'\g<1>0',
-            component.read_text()).replace(
+            component.read_text(encoding='utf-8-sig')).replace(
                 '<Fragment>', '<Fragment>\n\t\t<CustomActionRef Id="ConfigureHost" />', 1),
             encoding='utf-8')
         shortcuts = stage / 'res/msi/Package/Fragments/ShortcutProperties.wxs'
-        shortcuts.write_text(shortcuts.read_text().replace(
+        shortcuts.write_text(shortcuts.read_text(encoding='utf-8-sig').replace(
             'Id="DESKTOPSHORTCUTS" Value="1"', 'Id="DESKTOPSHORTCUTS" Value="0"').replace(
             'Id="STARTUPSHORTCUTS" Value="1"', 'Id="STARTUPSHORTCUTS" Value="0"').replace(
             'Id="CREATEDESKTOPSHORTCUTS" Secure="yes"',

@@ -5,6 +5,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+import xml.etree.ElementTree as ET
 
 from res.connection_role import prepare_role, validate_role
 
@@ -55,6 +56,8 @@ class ConnectionRoleTests(unittest.TestCase):
             self.assertIn('Id="DESKTOPSHORTCUTS" Value="0"', shortcuts.read_text())
             self.assertIn('Id="CREATEDESKTOPSHORTCUTS" Value="0"', shortcuts.read_text())
             self.assertIn('Id="STARTUPSHORTCUTS" Value="0"', shortcuts.read_text())
+            ET.fromstring(shortcuts.read_bytes())
+            ET.fromstring(component.read_bytes())
             self.assertEqual((ROOT / 'res/msi/Package/Components/RustDesk.wxs').read_text(), original)
 
     def test_personal_packages_use_the_same_secret_without_modifying_default_sources(self):

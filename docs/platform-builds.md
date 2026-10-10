@@ -123,6 +123,14 @@ msiexec /i "ectron-1.5.0-x86_64-host.msi" /qn /norestart CREATEDESKTOPSHORTCUTS=
 An MSI cannot select the fully silent UI level simply by being double-clicked.
 See Microsoft's [LIMITUI property](https://learn.microsoft.com/en-us/windows/win32/msi/limitui)
 and [installer command-line options](https://learn.microsoft.com/en-us/windows/win32/msi/standard-installer-command-line-options).
+
+To apply these installer defaults to an already released private host MSI, run
+the **Automatic Windows host MSI** workflow (`windows-host-msi.yml`) with its
+release tag and MSI filename. It verifies the published checksum, preserves the
+existing application payload, and assigns new product/package identities for an
+upgrade. Native checks cover an upgrade from the old MSI and a fresh installation.
+Its packaging helper uses Windows' MSI API through Python 3.11's standard library.
+
 These Windows installers are unsigned. Using MSI does not provide a trusted
 publisher signature or exempt the application from Smart App Control checks.
 
