@@ -139,9 +139,13 @@ jobs:
         with:
           name: desktop-bridge
           path: .
+      - name: Prepare branded sources
+        id: brand
+        run: |
+          python -c 'import os; from pathlib import Path; from res.branding import prepare_brand; p = prepare_brand(Path.cwd(), os.environ["BRAND_NAME"]); open(os.environ["GITHUB_OUTPUT"], "a").write("workspace=" + p.relative_to(Path.cwd()).as_posix() + "\n")'
       - uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32 # v2
         with:
-          workspaces: build/brands/${{ inputs.brand_name }}
+          workspaces: ${{ steps.brand.outputs.workspace }}
           prefix-key: desktop-${{ inputs.platform }}-${{ inputs.brand_name }}
       - name: Build requested package
         run: |
