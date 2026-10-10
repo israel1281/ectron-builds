@@ -96,7 +96,10 @@ jobs:
                   if ($text.Current.ControlType -eq [System.Windows.Automation.ControlType]::Text) { Write-Host $text.Current.Name }
                 }
               }
-              Get-ChildItem "$env:SystemRoot/Temp/$env:BRAND_NAME-host-setup-*/setup.log" | ForEach-Object { Get-Content $_.FullName -Tail 50 }
+              Get-ChildItem "$env:SystemRoot/Temp/$env:BRAND_NAME-host-setup-*/setup.log" | ForEach-Object {
+                Select-String -Path $_.FullName -Pattern 'Error|Return value 3' -Context 4, 4
+                Get-Content $_.FullName -Tail 20
+              }
               $process.Kill()
               throw 'Background host setup did not finish'
             }

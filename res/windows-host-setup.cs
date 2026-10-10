@@ -11,6 +11,7 @@ internal static class HostSetup
 {
     private const string Brand = @BRAND@;
     private const string PayloadHash = @MSI_SHA256@;
+    private const string PayloadName = @MSI_NAME@;
 
     [STAThread]
     private static int Main()
@@ -27,7 +28,7 @@ internal static class HostSetup
                     FileSystemRights.FullControl, InheritanceFlags.ContainerInherit | InheritanceFlags.ObjectInherit,
                     PropagationFlags.None, AccessControlType.Allow));
             Directory.CreateDirectory(directory, security);
-            string package = Path.Combine(directory, "host.msi");
+            string package = Path.Combine(directory, PayloadName);
             using (var input = Assembly.GetExecutingAssembly().GetManifestResourceStream("HostMsi"))
             using (var output = new FileStream(package, FileMode.CreateNew, FileAccess.Write, FileShare.None))
             {

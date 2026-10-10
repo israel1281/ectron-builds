@@ -29,7 +29,8 @@ def build_setup(msi, brand):
     resources = Path(__file__).resolve().parent
     compiler = Path(os.environ['SystemRoot']) / 'Microsoft.NET/Framework64/v4.0.30319/csc.exe'
     source = (resources / 'windows-host-setup.cs').read_text(encoding='utf-8').replace(
-        '@BRAND@', json.dumps(brand)).replace('@MSI_SHA256@', json.dumps(digest.hexdigest()))
+        '@BRAND@', json.dumps(brand)).replace('@MSI_SHA256@', json.dumps(digest.hexdigest())).replace(
+        '@MSI_NAME@', json.dumps(msi.name))
     with tempfile.TemporaryDirectory() as temporary:
         generated = Path(temporary) / 'HostSetup.cs'
         generated.write_text(source, encoding='utf-8')
