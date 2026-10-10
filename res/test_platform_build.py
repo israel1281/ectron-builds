@@ -4,7 +4,9 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
 
+from res.ci_build import run
 from res.platform_build import copy_snapshot
 
 
@@ -12,6 +14,13 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class PlatformBuildTests(unittest.TestCase):
+    def test_flutter_launcher_uses_resolved_windows_batch_path(self):
+        with patch('res.ci_build.shutil.which', return_value='C:/flutter/bin/flutter.bat'), \
+                patch('res.ci_build.subprocess.run') as execute:
+            run(['flutter', 'pub', 'get'], Path('client'), {'PATH': 'sdk'})
+            execute.assert_called_once_with(['C:/flutter/bin/flutter.bat', 'pub', 'get'],
+                                            cwd='client', env={'PATH': 'sdk'}, check=True)
+
     def test_source_snapshot_preserves_assets_and_submodules(self):
         with tempfile.TemporaryDirectory() as temporary:
             source = Path(temporary) / 'source'
