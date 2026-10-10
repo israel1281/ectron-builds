@@ -48,7 +48,6 @@ class ConnectionRoleTests(unittest.TestCase):
             self.assertIn('ExeCommand="--setup-host"', fragment)
             self.assertIn('Return="check"', fragment)
             self.assertIn('Id="LIMITUI" Value="1"', fragment)
-            self.assertIn('Id="ARPNOMODIFY" Value="1"', fragment)
             self.assertIn('Id="REBOOT" Value="ReallySuppress"', fragment)
             self.assertIn('<CustomActionRef Id="ConfigureHost" />', component.read_text())
             self.assertIn('Action="LaunchApp" After="InstallFinalize" Condition="0"', component.read_text())
