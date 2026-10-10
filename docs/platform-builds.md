@@ -66,8 +66,13 @@ gh run download RUN_ID --repo israel1281/ectron-builds --dir build/downloads
 
 Use `--no-wait` to submit and return the URL immediately. Use `--dry-run` to inspect
 the selected settings without uploading or compiling. GitHub retains the package
-artifacts for 14 days. These packages are unsigned and are not Apple notarized;
-trusted public distribution needs a separate signing setup.
+artifacts for 14 days. The workflow does not configure Windows Authenticode or
+Apple Developer ID signing/notarization; public distribution needs a separate
+signing setup.
+
+Open the DMG on your Mac and drag the app into Applications. Copy the DEB to the
+Linux computer, then install it there with `sudo apt install ./ectron-1.5.0-x86_64.deb`.
+On Windows, open the generated EXE or MSI to install the client.
 
 ## Local macOS build and libyuv
 
