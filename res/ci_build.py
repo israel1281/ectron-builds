@@ -19,6 +19,17 @@ def run(arguments, directory, environment):
     subprocess.run([executable] + arguments[1:], cwd=str(directory), env=environment, check=True)
 
 
+def finalize_macos_app(app, directory, environment):
+    # The legacy build adds service after Xcode signs the app, invalidating its resource seal.
+    run(['codesign', '--force', '--sign', '-', '--timestamp=none',
+         str(app / 'Contents/MacOS/service')], directory, environment)
+    # Ad hoc builds have no Team ID for hardened runtime's library validation.
+    run(['codesign', '--force', '--sign', '-', '--timestamp=none',
+         '--options=0', '--preserve-metadata=entitlements', str(app)], directory, environment)
+    run(['codesign', '--verify', '--deep', '--strict', '--verbose=2', str(app)],
+        directory, environment)
+
+
 def build(root, args):
     host = {'Darwin': 'macos', 'Windows': 'windows', 'Linux': 'linux'}.get(platform.system())
     if host != args.platform or args.package_format not in FORMATS[host]:
@@ -63,6 +74,7 @@ def build(root, args):
             contents = Path(temporary) / 'Installer'
             contents.mkdir()
             shutil.copytree(str(app), str(contents / app.name), symlinks=True)
+            finalize_macos_app(contents / app.name, stage, environment)
             (contents / 'Applications').symlink_to('/Applications')
             run(['hdiutil', 'create', '-volname', args.brand_name + ' Installer', '-srcfolder',
                  str(contents), '-ov', '-format', 'UDZO', str(destination)], stage, environment)

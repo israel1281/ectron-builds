@@ -70,6 +70,30 @@ artifacts for 14 days. The workflow does not configure Windows Authenticode or
 Apple Developer ID signing/notarization; public distribution needs a separate
 signing setup.
 
+macOS packaging signs the service and then seals the complete app after all build
+steps. It verifies the app with `codesign --verify --deep --strict` before creating
+the DMG. This fixes the invalid signature caused by adding the service after
+Xcode's signing step. The signature is ad hoc; it does not provide Apple Developer
+ID identity or notarization.
+
+If macOS blocks this self-built app after downloading it, first check its signature:
+
+```sh
+codesign --verify --deep --strict --verbose=2 /Applications/ectron.app
+```
+
+If that succeeds, use System Settings > Privacy & Security > Open Anyway when
+available. For this project's verified ad hoc build, an alternative is to remove
+the download quarantine from this app only:
+
+```sh
+xattr -rd com.apple.quarantine /Applications/ectron.app
+open /Applications/ectron.app
+```
+
+Developer ID signing and notarization are needed for normal public distribution
+without this manual approval. See [Apple's app security guidance](https://support.apple.com/102445).
+
 Open the DMG on your Mac and drag the app into Applications. Copy the DEB to the
 Linux computer, then install it there with `sudo apt install ./ectron-1.5.0-x86_64.deb`.
 On Windows, open the generated EXE or MSI to install the client.

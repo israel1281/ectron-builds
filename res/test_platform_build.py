@@ -1,12 +1,15 @@
 import json
+import os
 from pathlib import Path
+import plistlib
+import shutil
 import subprocess
 import sys
 import tempfile
 import unittest
 from unittest.mock import patch
 
-from res.ci_build import run
+from res.ci_build import finalize_macos_app, run
 from res.platform_build import copy_snapshot
 
 
@@ -14,6 +17,31 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class PlatformBuildTests(unittest.TestCase):
+    @unittest.skipUnless(sys.platform == 'darwin', 'Requires macOS codesign')
+    def test_mac_signature_includes_service_added_after_xcode_build(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            app = Path(temporary) / 'Client.app'
+            binaries = app / 'Contents/MacOS'
+            binaries.mkdir(parents=True)
+            (app / 'Contents/Info.plist').write_bytes(plistlib.dumps({
+                'CFBundleIdentifier': 'com.example.client', 'CFBundleExecutable': 'client',
+                'CFBundlePackageType': 'APPL'}))
+            source = Path(temporary) / 'client.c'
+            source.write_text('#ifdef LIBRARY\nint value(void) { return 0; }\n#else\n'
+                              'int value(void); int main(void) { return value(); }\n#endif\n')
+            library = app / 'Contents/Frameworks/client.dylib'
+            library.parent.mkdir()
+            subprocess.run(['clang', '-dynamiclib', '-DLIBRARY', str(source),
+                            '-o', str(library)], check=True)
+            subprocess.run(['clang', str(source), str(library), '-o', str(binaries / 'client')], check=True)
+            subprocess.run(['codesign', '--sign', '-', '--force', '--options=runtime', str(app)], check=True)
+            shutil.copy2(str(binaries / 'client'), str(binaries / 'service'))
+            verify = ['codesign', '--verify', '--deep', '--strict', str(app)]
+            self.assertNotEqual(subprocess.run(verify, capture_output=True).returncode, 0)
+            finalize_macos_app(app, Path(temporary), os.environ.copy())
+            self.assertEqual(subprocess.run(verify, capture_output=True).returncode, 0)
+            self.assertEqual(subprocess.run([str(binaries / 'client')], capture_output=True).returncode, 0)
+
     def test_flutter_launcher_uses_resolved_windows_batch_path(self):
         with patch('res.ci_build.shutil.which', return_value='C:/flutter/bin/flutter.bat'), \
                 patch('res.ci_build.subprocess.run') as execute:
