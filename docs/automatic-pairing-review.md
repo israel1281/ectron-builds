@@ -112,4 +112,14 @@ service startup, shared password, closed host window and repeated setup.
 Validation: all 10 local Python build/branding/role tests pass. Full Windows run
 `38080719165` compiled the application but found the Windows XML encoding error
 during MSI packaging; the explicit UTF-8 reads and XML regression check address
-that failure. Native validation of the repackaged MSI is pending.
+that failure. Windows run
+[`38084727422`](https://github.com/israel1281/ectron-personal-builds/actions/runs/38084727422)
+passed the Windows XML preparation check and both native installation cases:
+upgrade from the previous MSI and fresh installation. The default installation
+logged basic UI level 3 with no wizard interaction; desktop/startup shortcuts and
+host application windows were absent. The executable hash matched the original
+payload, the service was running with automatic startup, the shared password
+matched, and repeated host setup succeeded. Uninstallation also succeeded.
+
+The runner uses Windows Server 2022. Smart App Control acceptance on Windows 11
+and an actual remote screen session are not established by these installer tests.
