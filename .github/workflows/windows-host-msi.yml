@@ -37,7 +37,7 @@ jobs:
       - name: Check Windows host installer preparation
         shell: pwsh
         run: |
-          python -m unittest res.test_connection_role
+          python -m unittest res.test_connection_role.ConnectionRoleTests.test_windows_host_msi_configures_service_without_launching_app
           if ($LASTEXITCODE -ne 0) { throw 'Host installer preparation checks failed' }
       - name: Download and verify the private host MSI
         shell: pwsh

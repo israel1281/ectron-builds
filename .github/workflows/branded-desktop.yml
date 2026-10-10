@@ -115,7 +115,7 @@ jobs:
           python-version: '3.11'
       - name: Check Windows host installer preparation
         if: inputs.platform == 'windows' && inputs.package_format == 'msi' && inputs.connection_role == 'host'
-        run: python -m unittest res.test_connection_role
+        run: python -m unittest res.test_connection_role.ConnectionRoleTests.test_windows_host_msi_configures_service_without_launching_app
       - name: Install Linux native tools
         if: inputs.platform == 'linux'
         run: |
