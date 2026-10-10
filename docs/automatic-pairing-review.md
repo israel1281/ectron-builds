@@ -53,6 +53,7 @@ The follow-up changes affect these existing files and paths only:
 | `res/test_connection_role.py` | Extends the existing Windows host preparation check to cover the requested shortcut and tray-launch defaults. |
 | `.github/workflows/branded-desktop.yml` | Windows host validation launches the generated background setup EXE, checks for no desktop shortcut, and then performs the existing service/password checks. Other packages skip this step. |
 | `docs/platform-builds.md` | Explains background setup, the required Windows administrator approval, and packaging an existing MSI. |
+| `docs/automatic-pairing-review.md` | Records this required minimization review, affected paths, validation and limits. |
 
 The separate `res/windows_host_setup.py`, C# bootstrapper and administrator
 manifest contain the new packaging logic. The new
@@ -65,3 +66,16 @@ It preserves Windows' installed-app entry and service visibility. If an earlier
 MSI was already installed, setup removes the branded desktop and startup tray
 shortcuts for the installing account and the shared Windows folders. A shortcut
 manually placed in a different user's personal folders must be removed by that user.
+
+Validation: all 10 Python build/branding/role checks pass. Windows run
+`38071603762` successfully installed the setup EXE over the existing MSI and on a
+fresh installation, checking no desktop/startup tray shortcut, no host window,
+automatic service startup and the shared password. The MSI payload's original
+filename is preserved and the installing account can read, but not modify, the
+protected extracted payload. The setup EXE is distributed privately with its
+SHA-256 checksum; it does not change the existing Mac controller.
+
+Known CI limit: the system installation profile's public key can differ from the
+user session's registration key, so deletion by the profile key can leave a test
+computer in the registry. The test records from these runs were removed locally
+by their exact name, ID and timestamp, preserving the user's real Windows host.
