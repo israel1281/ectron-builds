@@ -130,6 +130,7 @@ jobs:
             macos) triplet=arm64-osx ;;
             linux) triplet=x64-linux ;;
           esac
+          export VCPKG_DEFAULT_HOST_TRIPLET="$triplet"
           if [ "$HWCODEC" = true ]; then
             "$VCPKG_ROOT/vcpkg" install --triplet "$triplet" --x-install-root="$VCPKG_ROOT/installed"
           else
