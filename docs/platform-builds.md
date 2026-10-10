@@ -109,6 +109,24 @@ installation. Upgrades reapply the shared password.
 The application does not need to be opened on the host computer. The Windows MSI
 does not launch the application window after installation.
 
+Windows host builds also produce `*-host-setup.exe`. Double-click this EXE and
+approve Windows' administrator prompt. It embeds the MSI, checks the embedded
+payload's SHA-256 hash, and runs Windows Installer with `/qn /norestart`:
+installation has no wizard, progress window or automatic reboot. It skips desktop
+and automatic tray shortcuts, removes those shortcuts from a previous ectron
+installation, and leaves the host window closed. The service starts and registers
+the computer automatically; select it in **My computers** on your controller.
+Installation failures display an error with the private installer log location.
+The host remains available in Windows' installed applications for removal.
+See [Microsoft's Windows Installer options](https://learn.microsoft.com/en-us/windows-server/administration/windows-commands/msiexec).
+
+To package an existing released host MSI without recompiling the desktop app,
+run **One-click Windows host setup** in the private repository's Actions tab.
+Select the release tag, host MSI asset name and brand. This workflow verifies
+the released checksum and tests both fresh setup and removal of previous
+desktop shortcuts before returning the setup EXE. The existing Mac controller
+continues to work with the same host password and pairing service.
+
 `--connection-role controller` makes a Mac, Windows or Linux client use the same
 password when you click Connect. `--host-id` optionally prefills an existing
 host's numeric ID. An omitted ID lets you connect to any of your hosts by ID.

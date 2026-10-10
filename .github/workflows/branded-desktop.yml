@@ -198,12 +198,14 @@ jobs:
           ECTRON_PAIRING_HOST_TOKEN: ${{ secrets.ECTRON_PAIRING_HOST_TOKEN }}
         run: |
           $ErrorActionPreference = 'Stop'
-          $package = Get-ChildItem build/dist/*-host.msi | Select-Object -First 1
-          $log = Join-Path $env:RUNNER_TEMP 'host-install.log'
-          $process = Start-Process msiexec.exe -ArgumentList @('/i', ('"' + $package.FullName + '"'), '/qn', '/norestart', '/l*v', ('"' + $log + '"')) -Wait -PassThru
+          $package = Get-ChildItem build/dist/*-host-setup.exe | Select-Object -First 1
+          $process = Start-Process $package.FullName -PassThru
+          if (-not $process.WaitForExit(120000)) { $process.Kill(); throw 'Background host setup did not finish' }
           if ($process.ExitCode -notin @(0, 3010)) {
-            Get-Content $log -Tail 60
-            throw "Host MSI installation failed with exit code $($process.ExitCode)"
+            throw "Host setup failed with exit code $($process.ExitCode)"
+          }
+          foreach ($folder in @([Environment]::GetFolderPath('DesktopDirectory'), [Environment]::GetFolderPath('CommonDesktopDirectory'))) {
+            if (Test-Path (Join-Path $folder "$env:BRAND_NAME.lnk")) { throw 'The host must have no desktop shortcut' }
           }
           $service = Get-CimInstance Win32_Service -Filter "Name='$env:BRAND_NAME'"
           if ($service.State -ne 'Running' -or $service.StartMode -ne 'Auto') { throw 'The host service must be running with automatic startup' }

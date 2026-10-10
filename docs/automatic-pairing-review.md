@@ -41,3 +41,27 @@ Known limits: computers must be awake and online; heartbeat recency does not
 guarantee desktop reachability. These personal installers contain credentials and
 are distributed through a private repository. macOS signing is ad hoc without
 Apple notarization; Windows signing is not configured.
+
+## One-click background host setup
+
+The follow-up changes affect these existing files and paths only:
+
+| Existing file | Required change and affected path |
+| --- | --- |
+| `res/ci_build.py` | Windows host MSI builds additionally package the MSI in a one-click EXE. Standard and controller builds follow their previous paths. |
+| `res/connection_role.py` | Generated Windows host MSI sources default to no desktop/startup tray shortcut and suppress both application launch actions. Original MSI templates and other roles stay unchanged. |
+| `res/test_connection_role.py` | Extends the existing Windows host preparation check to cover the requested shortcut and tray-launch defaults. |
+| `.github/workflows/branded-desktop.yml` | Windows host validation launches the generated background setup EXE, checks for no desktop shortcut, and then performs the existing service/password checks. Other packages skip this step. |
+| `docs/platform-builds.md` | Explains background setup, the required Windows administrator approval, and packaging an existing MSI. |
+
+The separate `res/windows_host_setup.py`, C# bootstrapper and administrator
+manifest contain the new packaging logic. The new
+`.github/workflows/windows-host-setup.yml` packages an already released private
+MSI and verifies native installation. No Rust application, remote desktop
+protocol, pairing backend or Mac controller code changes are needed.
+
+The one-click EXE hides installation UI after normal administrator approval.
+It preserves Windows' installed-app entry and service visibility. If an earlier
+MSI was already installed, setup removes the branded desktop and startup tray
+shortcuts for the installing account and the shared Windows folders. A shortcut
+manually placed in a different user's personal folders must be removed by that user.

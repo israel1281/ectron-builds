@@ -1,0 +1,122 @@
+name: One-click Windows host setup
+run-name: ${{ inputs.brand_name }} / background host setup
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: 'Private release containing the previously built host MSI'
+        type: string
+        default: v1.5.0-personal-r1
+        required: true
+      msi_asset:
+        type: string
+        default: ectron-1.5.0-x86_64-host.msi
+        required: true
+      brand_name:
+        type: string
+        default: ectron
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  setup:
+    runs-on: windows-2022
+    timeout-minutes: 15
+    env:
+      BRAND_NAME: ${{ inputs.brand_name }}
+      RELEASE_TAG: ${{ inputs.release_tag }}
+      MSI_ASSET: ${{ inputs.msi_asset }}
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Download and verify the private host MSI
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BUILD_REPOSITORY_PRIVATE: ${{ github.event.repository.private }}
+        run: |
+          @'
+          import hashlib, os, re, subprocess
+          from pathlib import Path
+          from res.branding import validate_brand_name
+          if os.environ['BUILD_REPOSITORY_PRIVATE'] != 'true':
+              raise SystemExit('Personal installers require a private build repository.')
+          validate_brand_name(os.environ['BRAND_NAME'])
+          asset = os.environ['MSI_ASSET']
+          if not re.fullmatch(r'[A-Za-z0-9._-]+-host\.msi', asset):
+              raise SystemExit('Select a personal host MSI release asset.')
+          destination = Path('build/dist')
+          destination.mkdir(parents=True)
+          subprocess.run(['gh', 'release', 'download', os.environ['RELEASE_TAG'],
+                          '--repo', os.environ['GITHUB_REPOSITORY'], '--pattern', asset,
+                          '--pattern', 'SHA256SUMS', '--dir', str(destination)], check=True)
+          expected = {}
+          for line in (destination / 'SHA256SUMS').read_text().splitlines():
+              digest, name = line.split(None, 1)
+              expected[name.strip()] = digest
+          with (destination / asset).open('rb') as source:
+              actual = hashlib.file_digest(source, 'sha256').hexdigest()
+          if actual != expected.get(asset):
+              raise SystemExit('The released MSI does not match its published checksum.')
+          (destination / 'SHA256SUMS').unlink()
+          print('Verified the released personal host MSI.')
+          '@ | python -
+          if ($LASTEXITCODE -ne 0) { throw 'Host MSI download or verification failed' }
+      - name: Build the background setup executable
+        shell: pwsh
+        run: |
+          python -m res.windows_host_setup --msi "build/dist/$env:MSI_ASSET" --brand-name "$env:BRAND_NAME"
+          if ($LASTEXITCODE -ne 0) { throw 'Host setup compilation failed' }
+      - name: Verify fresh installation and removal of previous shortcuts
+        shell: pwsh
+        env:
+          ECTRON_HOST_PASSWORD: ${{ secrets.ECTRON_HOST_PASSWORD }}
+          ECTRON_PAIRING_URL: ${{ vars.ECTRON_PAIRING_URL }}
+          ECTRON_PAIRING_HOST_TOKEN: ${{ secrets.ECTRON_PAIRING_HOST_TOKEN }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $msi = Get-ChildItem build/dist/*-host.msi | Select-Object -First 1
+          $setup = Get-ChildItem build/dist/*-host-setup.exe | Select-Object -First 1
+          $desktops = @([Environment]::GetFolderPath('DesktopDirectory'), [Environment]::GetFolderPath('CommonDesktopDirectory'))
+          $startups = @([Environment]::GetFolderPath('Startup'), [Environment]::GetFolderPath('CommonStartup'))
+          function Verify-Setup {
+            $process = Start-Process $setup.FullName -PassThru
+            if (-not $process.WaitForExit(120000)) { $process.Kill(); throw 'Background host setup did not finish' }
+            if ($process.ExitCode -notin @(0, 3010)) { throw "Background host setup failed: $($process.ExitCode)" }
+            foreach ($folder in $desktops) {
+              if (Test-Path (Join-Path $folder "$env:BRAND_NAME.lnk")) { throw 'The host must have no desktop shortcut' }
+            }
+            foreach ($folder in $startups) {
+              if (Test-Path (Join-Path $folder "$env:BRAND_NAME Tray.lnk")) { throw 'The host must have no automatic tray shortcut' }
+            }
+            $service = Get-CimInstance Win32_Service -Filter "Name='$env:BRAND_NAME'"
+            if ($service.State -ne 'Running' -or $service.StartMode -ne 'Auto') { throw 'The host service must be running with automatic startup' }
+            $profilePath = Join-Path $env:ProgramData ($env:BRAND_NAME.ToLower() + '/host/host-connection.json')
+            $profile = Get-Content $profilePath -Raw | ConvertFrom-Json
+            if ($profile.id -notmatch '^\d{6,16}$' -or $profile.password -cne $env:ECTRON_HOST_PASSWORD) { throw 'Unattended host profile validation failed' }
+            if (Get-Process -Name $env:BRAND_NAME | Where-Object MainWindowHandle -ne 0) { throw 'The host application window must remain closed' }
+            Stop-Service -Name $env:BRAND_NAME
+            if ($env:ECTRON_PAIRING_URL) {
+              $headers = @{ Authorization = ('Bearer ' + $env:ECTRON_PAIRING_HOST_TOKEN) }
+              Invoke-RestMethod -Method Delete -Uri ($env:ECTRON_PAIRING_URL + '/v1/hosts/' + $profile.device_key) -Headers $headers | Out-Null
+            }
+          }
+          $baseline = Start-Process msiexec.exe -ArgumentList @('/i', ('"' + $msi.FullName + '"'), '/qn', '/norestart', 'CREATEDESKTOPSHORTCUTS=1', 'STARTUPSHORTCUTS=1', 'LAUNCH_TRAY_APP=N') -Wait -PassThru
+          if ($baseline.ExitCode -notin @(0, 3010)) { throw 'The existing host MSI baseline could not be installed' }
+          if (-not ($desktops | Where-Object { Test-Path (Join-Path $_ "$env:BRAND_NAME.lnk") })) { throw 'The baseline desktop shortcut was not created' }
+          Verify-Setup
+          $uninstall = Start-Process msiexec.exe -ArgumentList @('/x', ('"' + $msi.FullName + '"'), '/qn', '/norestart') -Wait -PassThru
+          if ($uninstall.ExitCode -notin @(0, 3010)) { throw 'Test host uninstall failed' }
+          Verify-Setup
+          Write-Host 'Verified background setup, fresh installation, previous shortcut removal, no host window, automatic service and shared password.'
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: desktop-windows-host-setup
+          path: build/dist/*-host-setup.exe
+          if-no-files-found: error
+          retention-days: 14

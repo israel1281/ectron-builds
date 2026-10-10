@@ -39,6 +39,8 @@ class ConnectionRoleTests(unittest.TestCase):
             original = (ROOT / 'res/msi/Package/Components/RustDesk.wxs').read_text()
             component.write_text(original)
             (stage / 'res/msi-host-setup.wxs').write_text((ROOT / 'res/msi-host-setup.wxs').read_text())
+            shortcuts = stage / 'res/msi/Package/Fragments/ShortcutProperties.wxs'
+            shortcuts.write_text((ROOT / 'res/msi/Package/Fragments/ShortcutProperties.wxs').read_text())
             args = argparse.Namespace(connection_role='host', platform='windows', package_format='msi',
                                       host_id='', brand_name='ectron')
             prepare_role(stage, args, {'ECTRON_HOST_PASSWORD': 'private-password-1234'})
@@ -47,6 +49,10 @@ class ConnectionRoleTests(unittest.TestCase):
             self.assertIn('Return="check"', fragment)
             self.assertIn('<CustomActionRef Id="ConfigureHost" />', component.read_text())
             self.assertIn('Action="LaunchApp" After="InstallFinalize" Condition="0"', component.read_text())
+            self.assertIn('Action="LaunchAppTray" After="InstallFinalize" Condition="0"', component.read_text())
+            self.assertIn('Id="DESKTOPSHORTCUTS" Value="0"', shortcuts.read_text())
+            self.assertIn('Id="CREATEDESKTOPSHORTCUTS" Value="0"', shortcuts.read_text())
+            self.assertIn('Id="STARTUPSHORTCUTS" Value="0"', shortcuts.read_text())
             self.assertEqual((ROOT / 'res/msi/Package/Components/RustDesk.wxs').read_text(), original)
 
     def test_personal_packages_use_the_same_secret_without_modifying_default_sources(self):
