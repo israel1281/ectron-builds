@@ -1,7 +1,6 @@
 """Prepare personal host/controller packages without putting credentials in source."""
 
 import json
-import os
 import re
 
 

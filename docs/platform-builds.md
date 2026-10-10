@@ -113,7 +113,7 @@ host's numeric ID. An omitted ID lets you connect to any of your hosts by ID.
 Ordinary builds default to `standard` and retain their previous behavior.
 
 The shared password is read from the **ECTRON_HOST_PASSWORD** GitHub repository
-secret, never a workflow input, source file or log. Set it in the private build
+secret, never a workflow input, committed source file or log. Set it in the private build
 repository under Settings → Secrets and variables → Actions. Use 12–128
 characters. Host and controller installers contain this credential and must be
 distributed privately; public repositories reject personal builds. Public
