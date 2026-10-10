@@ -86,7 +86,20 @@ jobs:
           $startups = @([Environment]::GetFolderPath('Startup'), [Environment]::GetFolderPath('CommonStartup'))
           function Verify-Setup {
             $process = Start-Process $setup.FullName -PassThru
-            if (-not $process.WaitForExit(120000)) { $process.Kill(); throw 'Background host setup did not finish' }
+            if (-not $process.WaitForExit(120000)) {
+              $process.Refresh()
+              if ($process.MainWindowHandle -ne 0) {
+                Add-Type -AssemblyName UIAutomationClient, UIAutomationTypes
+                $dialog = [System.Windows.Automation.AutomationElement]::FromHandle($process.MainWindowHandle)
+                $texts = $dialog.FindAll([System.Windows.Automation.TreeScope]::Descendants, [System.Windows.Automation.Condition]::TrueCondition)
+                foreach ($text in $texts) {
+                  if ($text.Current.ControlType -eq [System.Windows.Automation.ControlType]::Text) { Write-Host $text.Current.Name }
+                }
+              }
+              Get-ChildItem "$env:SystemRoot/Temp/$env:BRAND_NAME-host-setup-*/setup.log" | ForEach-Object { Get-Content $_.FullName -Tail 50 }
+              $process.Kill()
+              throw 'Background host setup did not finish'
+            }
             if ($process.ExitCode -notin @(0, 3010)) { throw "Background host setup failed: $($process.ExitCode)" }
             foreach ($folder in $desktops) {
               if (Test-Path (Join-Path $folder "$env:BRAND_NAME.lnk")) { throw 'The host must have no desktop shortcut' }
