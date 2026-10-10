@@ -6,7 +6,7 @@ import sys
 import tempfile
 import unittest
 
-from res.connection_role import prepare_role
+from res.connection_role import prepare_role, validate_role
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -27,6 +27,27 @@ class ConnectionRoleTests(unittest.TestCase):
                                  '--connection-role', 'host', '--dry-run'], capture_output=True, text=True)
         self.assertEqual(result.returncode, 2)
 
+    def test_windows_host_msi_configures_service_without_launching_app(self):
+        validate_role('host', 'windows', 'msi', '')
+        with self.assertRaisesRegex(ValueError, 'Windows MSI'):
+            validate_role('host', 'windows', 'exe', '')
+        with tempfile.TemporaryDirectory() as temporary:
+            stage = Path(temporary)
+            for directory in ['flutter/lib/desktop', 'res/msi/Package/Fragments', 'res/msi/Package/Components']:
+                (stage / directory).mkdir(parents=True)
+            component = stage / 'res/msi/Package/Components/RustDesk.wxs'
+            original = (ROOT / 'res/msi/Package/Components/RustDesk.wxs').read_text()
+            component.write_text(original)
+            (stage / 'res/msi-host-setup.wxs').write_text((ROOT / 'res/msi-host-setup.wxs').read_text())
+            args = argparse.Namespace(connection_role='host', platform='windows', package_format='msi',
+                                      host_id='', brand_name='ectron')
+            prepare_role(stage, args, {'ECTRON_HOST_PASSWORD': 'private-password-1234'})
+            fragment = (stage / 'res/msi/Package/Fragments/HostSetup.wxs').read_text()
+            self.assertIn('ExeCommand="--setup-host"', fragment)
+            self.assertIn('Return="check"', fragment)
+            self.assertIn('Action="LaunchApp" After="InstallFinalize" Condition="0"', component.read_text())
+            self.assertEqual((ROOT / 'res/msi/Package/Components/RustDesk.wxs').read_text(), original)
+
     def test_personal_packages_use_the_same_secret_without_modifying_default_sources(self):
         password = 'private-$password-1234'
         with tempfile.TemporaryDirectory() as temporary:
@@ -39,11 +60,18 @@ class ConnectionRoleTests(unittest.TestCase):
             for role, platform, package in [('host', 'linux', 'deb'), ('controller', 'macos', 'dmg')]:
                 (stage / 'flutter/lib/desktop/deployment_profile.dart').write_text(default)
                 environment = {'ECTRON_HOST_PASSWORD': password, 'GITHUB_ACTIONS': 'true',
-                               'BUILD_REPOSITORY_PRIVATE': 'true'}
+                               'BUILD_REPOSITORY_PRIVATE': 'true',
+                               'ECTRON_PAIRING_URL': 'https://pairing.example.com',
+                               'ECTRON_PAIRING_HOST_TOKEN': 'h' * 43,
+                               'ECTRON_PAIRING_CONTROLLER_TOKEN': 'c' * 43}
                 args = argparse.Namespace(connection_role=role, platform=platform,
                                           package_format=package, host_id='', brand_name='ectron')
                 prepare_role(stage, args, environment)
-                self.assertEqual(json.loads(environment['ECTRON_DEPLOYMENT_PROFILE'])['password'], password)
+                profile = json.loads(environment['ECTRON_DEPLOYMENT_PROFILE'])
+                self.assertEqual(profile['password'], password)
+                self.assertEqual(profile['pairing_token'], ('h' if role == 'host' else 'c') * 43)
+                self.assertNotIn('ECTRON_PAIRING_HOST_TOKEN', environment)
+                self.assertNotIn('ECTRON_PAIRING_CONTROLLER_TOKEN', environment)
                 self.assertNotIn('ECTRON_HOST_PASSWORD', environment)
                 self.assertIn(r'private-\$password-1234', (stage / 'flutter/lib/desktop/deployment_profile.dart').read_text())
             postinst = (stage / 'res/DEBIAN/postinst').read_text()

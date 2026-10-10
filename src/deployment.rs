@@ -22,9 +22,14 @@ pub fn setup_command(args: &[String]) -> Option<i32> {
     }
 }
 
-#[cfg(not(target_os = "linux"))]
+#[cfg(not(any(target_os = "linux", target_os = "windows")))]
 fn setup_host() -> hbb_common::ResultType<()> {
-    hbb_common::bail!("Automatic host setup requires the Linux DEB installer")
+    hbb_common::bail!("Automatic host setup requires the Linux DEB or Windows MSI installer")
+}
+
+#[cfg(target_os = "windows")]
+fn setup_host() -> hbb_common::ResultType<()> {
+    crate::platform::windows_host::setup()
 }
 
 #[cfg(target_os = "linux")]

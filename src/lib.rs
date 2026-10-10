@@ -45,6 +45,9 @@ mod clipboard;
 pub mod core_main;
 #[cfg(not(any(target_os = "android", target_os = "ios")))]
 mod deployment;
+
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
+mod pairing;
 mod custom_server;
 mod lang;
 #[cfg(not(any(target_os = "android", target_os = "ios")))]

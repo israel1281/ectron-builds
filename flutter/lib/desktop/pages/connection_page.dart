@@ -21,6 +21,7 @@ import '../../common/widgets/autocomplete.dart';
 import '../../models/platform_model.dart';
 import '../deployment_profile.dart';
 import '../widgets/host_connection.dart';
+import '../widgets/paired_hosts.dart';
 import '../../desktop/widgets/material_mod_popup_menu.dart' as mod_menu;
 
 class OnlineStatusWidget extends StatefulWidget {
@@ -308,6 +309,9 @@ class _ConnectionPageState extends State<ConnectionPage>
 
   @override
   Widget build(BuildContext context) {
+    if (deploymentRole == 'controller' && deploymentPairingUrl.isNotEmpty) {
+      return const PairedHosts();
+    }
     final isOutgoingOnly = bind.isOutgoingOnly();
     return Column(
       children: [

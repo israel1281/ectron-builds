@@ -100,12 +100,14 @@ On Windows, open the generated EXE or MSI to install the client.
 
 ## Personal host and controller installers
 
-`--connection-role host` makes a Linux DEB install the shared permanent password,
+`--connection-role host` makes a Linux DEB or Windows MSI install the shared permanent password,
 accept connections by password, allow access while its window is closed, enable
-keyboard/mouse control, and enable/start the systemd service. The installer waits
-for the service to acknowledge its settings; failures leave the package
-unconfigured and print a retry command. Upgrades reapply the shared password.
-The application does not need to be opened on the Linux computer.
+keyboard/mouse control, and enable/start its background service. The installer waits
+for the service to acknowledge its settings. Linux failures leave the package
+unconfigured and print a retry command; Windows setup failures fail the MSI
+installation. Upgrades reapply the shared password.
+The application does not need to be opened on the host computer. The Windows MSI
+does not launch the application window after installation.
 
 `--connection-role controller` makes a Mac, Windows or Linux client use the same
 password when you click Connect. `--host-id` optionally prefills an existing
@@ -123,6 +125,9 @@ source and standard installers may remain in `israel1281/ectron-builds`.
 python3 build.py --platform linux --package-format deb --brand-name ectron \
   --connection-role host --github-repo OWNER/PRIVATE-BUILD-REPO
 
+python3 build.py --platform windows --package-format msi --brand-name ectron \
+  --connection-role host --github-repo OWNER/PRIVATE-BUILD-REPO
+
 python3 build.py --platform mac --package-format dmg --brand-name ectron \
   --connection-role controller --github-repo OWNER/PRIVATE-BUILD-REPO
 
@@ -137,12 +142,45 @@ The public connection service gives each host its own device ID after install;
 one ID cannot identify several different computers. Retaining the app's local
 configuration retains its ID, subject to public-server registration/collisions.
 
-After installing a host, the installer prints its ID and saves an owner-only
-connection profile at `/var/lib/ectron/host-connection.json`. Copy this file
+For manual pairing, the installer saves a private connection profile at
+`/var/lib/ectron/host-connection.json` on Linux or
+`C:\ProgramData\ectron\host\host-connection.json` on Windows. Copy this file
 privately to your Mac/Windows computer, then click **Import host connection** in
 the controller build to connect using its ID and password. Alternatively, enter
 its printed ID and click Connect; the controller already has the shared password.
 Keep the connection profile private, since it contains the password.
+
+### Automatic pairing through Cloudflare
+
+The personal build repository is `israel1281/ectron-personal-builds`. Its
+`ECTRON_PAIRING_URL` Actions variable points to
+`https://ectron-personal-pairing-85247689.reload-proxy.workers.dev`. Two Actions
+secrets, `ECTRON_PAIRING_HOST_TOKEN` and `ECTRON_PAIRING_CONTROLLER_TOKEN`, provide
+separate credentials for registering hosts and listing computers. The Worker
+stores the matching values as `ENROLL_TOKEN` and `CONTROLLER_TOKEN`. The shared
+desktop password stays in the private installers and is not sent to Cloudflare.
+
+With these settings, install the **host MSI** on Windows with administrator
+approval. Its automatic service registers the computer's name and device ID
+after its unattended settings and public-server registration are ready, and
+refreshes registration every minute. On the Mac, install/open the **controller
+DMG**. **My computers** refreshes every 15 seconds. Click **Connect** beside the
+Windows computer; its ID and the shared password are supplied automatically.
+No host application window or ID copying is required. Initial registration can
+take a minute or longer depending on network availability.
+
+Cloudflare only provides the computer registry. Remote desktop sessions continue
+using the existing RustDesk rendezvous/relay service. The Windows computer must
+be powered on, awake and online. A recent registry heartbeat is not a guarantee
+that its desktop is reachable.
+
+The backend source is in `res/pairing/`. `deploy.py` deploys locally using
+`CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_API_TOKEN`,
+`ECTRON_PAIRING_WORKER_NAME`, `ECTRON_PAIRING_HOST_TOKEN`, and
+`ECTRON_PAIRING_CONTROLLER_TOKEN` from the process environment. It creates a
+dedicated D1 database, installs `schema.sql`, deploys the Worker and sets its two
+limited secrets. Keep Cloudflare management credentials on the deployment
+machine. Host and controller builds only need the limited pairing tokens.
 
 Hosts must remain powered on, awake and online. GNOME Wayland can require local
 screen-sharing approval; X11 is required to control the login screen after a

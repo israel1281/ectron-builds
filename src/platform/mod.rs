@@ -9,6 +9,9 @@ pub use windows::*;
 pub mod windows;
 
 #[cfg(windows)]
+pub(crate) mod windows_host;
+
+#[cfg(windows)]
 pub mod win_device;
 
 #[cfg(target_os = "macos")]
