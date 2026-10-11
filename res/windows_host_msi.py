@@ -1,4 +1,4 @@
-"""Repackage an existing personal host MSI with basic UI and no desktop shortcut.
+"""Repackage a personal host MSI with its standard wizard and installer logging.
 
 Run on Windows with Python 3.11, whose standard library exposes the MSI API.
 """
@@ -28,7 +28,10 @@ def configure_msi(source, output):
         if host_action is None:
             raise ValueError('The MSI must already contain the unattended host setup action.')
 
-        properties = {'LIMITUI': '1', 'ARPNOMODIFY': '1', 'REBOOT': 'ReallySuppress',
+        view = database.OpenView("DELETE FROM `Property` WHERE `Property` = 'LIMITUI'")
+        view.Execute(None)
+        view.Close()
+        properties = {'MsiLogging': 'voicewarmup', 'ARPNOMODIFY': '1', 'REBOOT': 'ReallySuppress',
                       'DESKTOPSHORTCUTS': '0', 'CREATEDESKTOPSHORTCUTS': '0',
                       'STARTUPSHORTCUTS': '0', 'LAUNCH_TRAY_APP': 'N',
                       'ProductCode': msilib.gen_uuid()}
@@ -58,7 +61,7 @@ def main():
     parser.add_argument('--msi', type=Path, required=True)
     parser.add_argument('--output', type=Path, required=True)
     args = parser.parse_args()
-    print('Automatic host MSI: ' + str(configure_msi(args.msi, args.output)))
+    print('Host MSI with setup wizard: ' + str(configure_msi(args.msi, args.output)))
 
 
 if __name__ == '__main__':

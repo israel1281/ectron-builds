@@ -1,5 +1,5 @@
-name: Automatic Windows host MSI
-run-name: ${{ inputs.brand_name }} / automatic host MSI
+name: Windows host MSI
+run-name: ${{ inputs.brand_name }} / host MSI with setup wizard
 
 on:
   workflow_dispatch:
@@ -7,7 +7,7 @@ on:
       release_tag:
         description: 'Private release containing the previously built host MSI'
         type: string
-        default: v1.5.0-personal-r1
+        default: v1.5.0-personal-r2
         required: true
       msi_asset:
         type: string
@@ -71,11 +71,31 @@ jobs:
           print('Verified the released personal host MSI.')
           '@ | python -
           if ($LASTEXITCODE -ne 0) { throw 'Host MSI download or verification failed' }
-      - name: Repackage the automatic host MSI
+      - name: Repackage the host MSI with its standard wizard
         shell: pwsh
         run: |
           python -m res.windows_host_msi --msi "build/input/$env:MSI_ASSET" --output "build/dist/$env:MSI_ASSET"
           if ($LASTEXITCODE -ne 0) { throw 'Host MSI packaging failed' }
+          @'
+          import msilib, os
+          from pathlib import Path
+          database = msilib.OpenDatabase(str(Path('build/dist') / os.environ['MSI_ASSET']), msilib.MSIDBOPEN_READONLY)
+          for name, expected in [('LIMITUI', None), ('MsiLogging', 'voicewarmup')]:
+              view = database.OpenView("SELECT `Value` FROM `Property` WHERE `Property` = '" + name + "'")
+              view.Execute(None)
+              row = view.Fetch()
+              actual = None if row is None else row.GetString(1)
+              assert actual == expected, 'Wizard/logging property validation failed: ' + name
+              view.Close()
+          for dialog in ['WelcomeDlg', 'LicenseAgreementDlg', 'MyInstallDirDlg', 'VerifyReadyDlg']:
+              view = database.OpenView("SELECT `Dialog` FROM `Dialog` WHERE `Dialog` = '" + dialog + "'")
+              view.Execute(None)
+              assert view.Fetch() is not None, 'Missing original wizard dialog: ' + dialog
+              view.Close()
+          database.Close()
+          print('Verified original setup wizard dialogs, no LIMITUI restriction and automatic verbose logging.')
+          '@ | python -
+          if ($LASTEXITCODE -ne 0) { throw 'Wizard MSI properties and dialogs failed validation' }
       - name: Verify Windows host installation
         shell: pwsh
         env:
@@ -91,10 +111,9 @@ jobs:
           $executable = Join-Path $env:ProgramFiles ($env:BRAND_NAME + '/' + $env:BRAND_NAME + '.exe')
           function Verify-Installation($case) {
             $log = Join-Path $env:RUNNER_TEMP ("host-msi-$case.log")
-            $process = Start-Process msiexec.exe -ArgumentList @('/i', ('"' + $msi.FullName + '"'), '/norestart', '/l*v', ('"' + $log + '"')) -PassThru
-            if (-not $process.WaitForExit(120000)) { $process.Kill(); throw 'Automatic host MSI installation did not finish' }
+            $process = Start-Process msiexec.exe -ArgumentList @('/i', ('"' + $msi.FullName + '"'), '/qn', '/norestart', '/l*v', ('"' + $log + '"')) -PassThru
+            if (-not $process.WaitForExit(120000)) { $process.Kill(); throw 'Host MSI installation did not finish' }
             if ($process.ExitCode -notin @(0, 3010)) { throw "Host MSI installation failed: $($process.ExitCode)" }
-            if (-not (Select-String -Path $log -Pattern 'Property\(S\): UILevel = 3$' -Quiet)) { throw 'The MSI must use basic UI without wizard dialogs' }
             foreach ($folder in $desktops) {
               if (Test-Path (Join-Path $folder "$env:BRAND_NAME.lnk")) { throw 'The host must have no desktop shortcut' }
             }
@@ -115,9 +134,9 @@ jobs:
               $headers = @{ Authorization = ('Bearer ' + $env:ECTRON_PAIRING_HOST_TOKEN) }
               Invoke-RestMethod -Method Delete -Uri ($env:ECTRON_PAIRING_URL + '/v1/hosts/' + $profile.device_key) -Headers $headers | Out-Null
             }
-            Write-Host "Verified $case installation: basic UI, no desktop/startup shortcut, no host window, unchanged payload, automatic service and shared password."
+            Write-Host "Verified $case installation using unattended CI mode: no desktop/startup shortcut, no host window, unchanged payload, automatic service and shared password."
           }
-          $baseline = Start-Process msiexec.exe -ArgumentList @('/i', ('"' + $original.FullName + '"'), '/qn', '/norestart', 'CREATEDESKTOPSHORTCUTS=1', 'STARTUPSHORTCUTS=1', 'LAUNCH_TRAY_APP=N') -Wait -PassThru
+          $baseline = Start-Process msiexec.exe -ArgumentList @('/i', ('"' + $original.FullName + '"'), '/qn', '/norestart', 'DESKTOPSHORTCUTS=1', 'CREATEDESKTOPSHORTCUTS=1', 'STARTUPSHORTCUTS=1', 'LAUNCH_TRAY_APP=N') -Wait -PassThru
           if ($baseline.ExitCode -notin @(0, 3010)) { throw 'The existing host MSI baseline could not be installed' }
           if (-not ($desktops | Where-Object { Test-Path (Join-Path $_ "$env:BRAND_NAME.lnk") })) { throw 'The baseline desktop shortcut was not created' }
           $script:payloadHash = (Get-FileHash $executable).Hash

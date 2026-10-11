@@ -123,3 +123,27 @@ matched, and repeated host setup succeeded. Uninstallation also succeeded.
 
 The runner uses Windows Server 2022. Smart App Control acceptance on Windows 11
 and an actual remote screen session are not established by these installer tests.
+
+## Restore the standard host MSI wizard
+
+The user requested the regular installer after a Windows machine showed an
+unknown-publisher UAC prompt followed by the error text for MSI error 1721.
+These screenshots do not identify the failed custom action or its operating
+system error. This change restores the wizard and adds logs; it does not claim
+to fix that machine-specific execution failure or change publisher trust.
+
+| Existing file | Required change and affected path |
+| --- | --- |
+| `res/msi-host-setup.wxs` | Removes the host-only `LIMITUI` restriction to restore the existing wizard and enables automatic verbose installer logs for the reported execution failure. |
+| `res/windows_host_msi.py` | Removes `LIMITUI` from an existing personal MSI, including r2, and adds default logging. Existing application payload, unattended configuration, shortcut defaults and identity regeneration remain intact. |
+| `res/test_connection_role.py` | Updates the existing Windows host regression check for the restored wizard and diagnostic logging properties. |
+| `.github/workflows/branded-desktop.yml` | Uses `/qn` for unattended CI installation now that the default UI requires wizard interaction, and removes the obsolete basic-UI assertion. Other roles and platforms skip this check. |
+| `.github/workflows/windows-host-msi.yml` | Verifies the original wizard dialogs and absence of `LIMITUI`; checks the logging property; runs installation checks in unattended CI mode. Uses r2 as the upgrade baseline, with explicit desktop shortcut creation to verify its removal. |
+| `docs/platform-builds.md` | Documents the restored wizard and how to retrieve diagnostic logs for error 1721. |
+| `docs/automatic-pairing-review.md` | Records the required scope review, verification and unresolved user-machine failure. |
+
+No application, controller, pairing protocol, backend or Windows security-policy
+changes are required. Native tests of fresh installation and upgrade are pending.
+CI will install with `/qn` and inspect the restored wizard database; this does not
+constitute an interactive wizard click-through test on Windows 11. The user's
+verbose installer log is still required to identify the reported failed program.

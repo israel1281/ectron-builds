@@ -107,8 +107,8 @@ for the service to acknowledge its settings. Linux failures leave the package
 unconfigured and print a retry command; Windows setup failures fail the MSI
 installation. Upgrades reapply the shared password.
 The application does not need to be opened on the host computer. Double-clicking
-the Windows host MSI starts installation without the setup wizard: approve the
-administrator prompt and Windows shows its built-in progress window. The host
+the Windows host MSI opens the standard setup wizard. Follow its installation
+pages and approve the Windows administrator prompt. The host
 MSI defaults to no desktop or automatic tray shortcut, does not launch the
 application window, and suppresses automatic reboots. It remains visible in
 Windows' installed applications for removal. Standard and controller MSI builds
@@ -120,16 +120,29 @@ A fully silent installation needs an administrator command prompt:
 msiexec /i "ectron-1.5.0-x86_64-host.msi" /qn /norestart CREATEDESKTOPSHORTCUTS=0 STARTUPSHORTCUTS=0 LAUNCH_TRAY_APP=N /l*v "%TEMP%\ectron-host-install.log"
 ```
 
-An MSI cannot select the fully silent UI level simply by being double-clicked.
-See Microsoft's [LIMITUI property](https://learn.microsoft.com/en-us/windows/win32/msi/limitui)
-and [installer command-line options](https://learn.microsoft.com/en-us/windows/win32/msi/standard-installer-command-line-options).
+See Microsoft's [installer command-line options](https://learn.microsoft.com/en-us/windows/win32/msi/standard-installer-command-line-options).
 
 To apply these installer defaults to an already released private host MSI, run
-the **Automatic Windows host MSI** workflow (`windows-host-msi.yml`) with its
+the **Windows host MSI** workflow (`windows-host-msi.yml`) with its
 release tag and MSI filename. It verifies the published checksum, preserves the
 existing application payload, and assigns new product/package identities for an
 upgrade. Native checks cover an upgrade from the old MSI and a fresh installation.
 Its packaging helper uses Windows' MSI API through Python 3.11's standard library.
+
+The host MSI enables automatic verbose logging (`MsiLogging=voicewarmup`).
+Windows creates an `MSI*.LOG` file in the temporary folder. To choose a known log
+filename when diagnosing a failed install, run this from Command Prompt:
+
+```bat
+msiexec /i "%USERPROFILE%\Downloads\ectron-1.5.0-x86_64-host.msi" /L*V "%TEMP%\ectron-install.log"
+```
+
+An unknown-publisher UAC prompt is administrator approval, not an installation
+failure. Error 1721 means a required program could not be run; the log identifies
+its action, path and command. Restoring the wizard does not establish or repair
+that cause. Check the error and nearby `Return value 3` lines before changing
+dependencies or security settings. See Microsoft's
+[installer error messages](https://learn.microsoft.com/en-us/windows/win32/msi/windows-installer-error-messages).
 
 These Windows installers are unsigned. Using MSI does not provide a trusted
 publisher signature or exempt the application from Smart App Control checks.
