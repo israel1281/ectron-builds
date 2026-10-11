@@ -143,7 +143,12 @@ to fix that machine-specific execution failure or change publisher trust.
 | `docs/automatic-pairing-review.md` | Records the required scope review, verification and unresolved user-machine failure. |
 
 No application, controller, pairing protocol, backend or Windows security-policy
-changes are required. Native tests of fresh installation and upgrade are pending.
-CI will install with `/qn` and inspect the restored wizard database; this does not
+changes are required. Windows run
+[`38180312747`](https://github.com/israel1281/ectron-personal-builds/actions/runs/38180312747)
+passed wizard-dialog and logging-property checks and both fresh and upgrade
+installation tests. The executable hash stayed unchanged; no desktop/startup
+shortcut or host application window was created; automatic service startup,
+the shared password and repeated host setup passed. Uninstallation also passed.
+CI installed with `/qn` and inspected the restored wizard database; this does not
 constitute an interactive wizard click-through test on Windows 11. The user's
 verbose installer log is still required to identify the reported failed program.
